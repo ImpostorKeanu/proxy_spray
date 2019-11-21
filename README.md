@@ -7,6 +7,14 @@ if it's possible to use that proxy to access upstream resources.
 
 `proxy_spray` requires Python3.7 and the requests library.
 
+# Installation
+
+The following snippet should install requests for you.
+
+```bash
+python3.7 -m pip install -r requirements.txt
+```
+
 # Key Capabilities
 
 ## Target Scanning
