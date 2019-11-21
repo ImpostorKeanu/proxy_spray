@@ -5,6 +5,7 @@ import requests
 import ipaddress
 import re
 import pdb
+from sys import stderr
 from multiprocessing.pool import Pool
 from pathlib import Path
 from time import sleep
@@ -235,11 +236,11 @@ print(
 '\n  _ \                      __|\n' \
 '  __/ _| _ \ \ \ /  |  | \__ \  _ \   _| _` |  |  |\n' \
 '_|  _| \___/  _\_\ \_, | ____/ .__/ _| \__,_| \_, |\n' \
-'                    ___/       _|              ___/\n')
+'                    ___/       _|              ___/\n',file=stderr)
 
 # == Handle proxies ==
 
-print('[+] Loading proxies...',end='')
+print('[+] Loading proxies...',end='',file=stderr)
 proxies = []
 buff = []
 for p in args.proxy_urls:
@@ -260,10 +261,10 @@ for p in args.proxy_urls:
         buff.append(proxy)
         proxies.append({scheme:proxy})
 
-print('done!')
+print('done!',file=stderr)
 # == END handle proxies ==
 # == Handle targets ==
-print('[+] Loading targets...',end='')
+print('[+] Loading targets...',end='',file=stderr)
 targets = []
 for t in args.targets:
 
@@ -277,11 +278,11 @@ for t in args.targets:
     # Handle an individual target
     else:
         targets += parseTarget(t)
-print('done!')
+print('done!',file=stderr)
 # == END handle targets ==
 # == Handle headers ==
 
-print('[+] Loading http headers...',end='')
+print('[+] Loading http headers...',end='',file=stderr)
 headers = {}
 for h in args.http_headers:
 
@@ -295,7 +296,7 @@ for h in args.http_headers:
     else:
         key,value = parseHeader(h)
         headers[key] = value
-print('done!')
+print('done!',file=stderr)
 
 # == END handle headers ==
 
@@ -303,10 +304,9 @@ print('done!')
 # BEGIN SENDING REQUESTS
 # ======================
 
-print('[+] Beginning to send HTTP requests')
+print('[+] Beginning to send HTTP requests',file=stderr)
 if not args.display_failures:
-    print('[-] Failed requests will not be displayed')
-print()
+    print('[+] Failed requests will not be displayed',file=stderr)
 
 # Initialize variables for multiprocessing
 pool, results = Pool(args.process_count), []
@@ -341,7 +341,7 @@ for proxy in proxies:
             if results.__len__() < args.process_count:
                 break
             else:
-                sleep(1)
+                sleep(.5)
 
         # Perform the next request
         results.append(
@@ -351,6 +351,7 @@ for proxy in proxies:
             )
 
 # Wait and report on pending results
+print('[+] Final requests sent, awaiting responses',file=stderr)
 while results:
 
     result = results[0]
@@ -359,7 +360,8 @@ while results:
         printResult(result.get())
         del(results[results.index(result)])
 
-    if results: sleep(1)
+    if results: sleep(.5)
+print('[+] Execution complete',file=stderr)
 
 # Close up the pool
 pool.close()
