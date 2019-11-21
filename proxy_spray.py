@@ -218,11 +218,11 @@ def genericRequestsCallback(proxy,target,verify=False,
     try:
         return (True,proxy,target,
                 requests.get(target,
-                    proxy=proxy,
+                    proxies=proxy,
                     verify=verify,
                     allow_redirects=allow_redirects,
                     headers=headers))
-    except:
+    except Exception as e:
         return (False,proxy,target,None)
 
 # == END FUNCTION DEFINITIONS ==
