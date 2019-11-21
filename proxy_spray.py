@@ -242,7 +242,6 @@ print(
 
 print('[+] Loading proxies...',end='',file=stderr)
 proxies = []
-buff = []
 for p in args.proxy_urls:
     
     # Handle a file of proxies
@@ -250,15 +249,16 @@ for p in args.proxy_urls:
     if pth:
         with open(pth) as infile:
             for proxy in infile:
-                proxies.append(*parseProxy(proxy))
+                scheme,proxy = parseProxy(proxy.strip())
+                proxy = {scheme:proxy}
+                if proxy in proxies: continue
+                proxies.append(proxy)
 
     # Handle an individual proxy
     else:
         scheme,proxy = parseProxy(p)
-
-        if proxy in buff: continue
-
-        buff.append(proxy)
+        proxy = {scheme:proxy}
+        if proxy in proxies: continue
         proxies.append({scheme:proxy})
 
 print('done!',file=stderr)
@@ -273,7 +273,7 @@ for t in args.targets:
     if pth:
         with open(pth) as infile:
             for target in infile:
-                targets += parseTarget(t)
+                targets += parseTarget(target.strip())
 
     # Handle an individual target
     else:
@@ -349,6 +349,8 @@ for proxy in proxies:
                     genericRequestsCallback,(),{'proxy':proxy,
                         'target':target,'headers':headers})
             )
+
+        sleep(1)
 
 # Wait and report on pending results
 print('[+] Final requests sent, awaiting responses',file=stderr)
