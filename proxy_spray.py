@@ -70,7 +70,6 @@ assumption_group.add_argument('--no-assume-http','-nahttp',
     is an http service.
     ''')
 
-args = parser.parse_args()
 
 # == END INTERFACE ==
 
@@ -199,7 +198,8 @@ def printResult(out):
 def compareSchemes(v0,v1):
 
     r = '^(https?)'
-    if re.search(r,v0) and re.search(r,v1):
+    rv0, rv1 = re.search(r,v0), re.search(r,v1)
+    if rv0 and rv1 and rv0.groups()[0] == rv1.groups()[0]:
         return True
     else:
         return False
@@ -217,156 +217,165 @@ def genericRequestsCallback(proxy,target,verify=False,
     headers = headers or {}
 
     try:
-        return (True,proxy,target,
-                requests.get(target,
+        resp = requests.get(target,
                     proxies=proxy,
                     verify=verify,
                     allow_redirects=allow_redirects,
-                    headers=headers))
+                    headers=headers)
+
+        if resp.status_code == 403:
+            raise Exception('403 Forbidden Response')
+
+        return (True,proxy,target,resp,None)
+
     except Exception as e:
-        return (False,proxy,target,None)
+        return (False,proxy,target,None,e)
 
-# == END FUNCTION DEFINITIONS ==
-
-# ================
-# BEGIN MAIN LOGIC
-# ================
-
-print(
-'\n  _ \                      __|\n' \
-'  __/ _| _ \ \ \ /  |  | \__ \  _ \   _| _` |  |  |\n' \
-'_|  _| \___/  _\_\ \_, | ____/ .__/ _| \__,_| \_, |\n' \
-'                    ___/       _|              ___/\n',file=stderr)
-
-# == Handle proxies ==
-
-print('[+] Loading proxies...',end='',file=stderr)
-proxies = []
-for p in args.proxy_urls:
+if __name__ == '__main__':
     
-    # Handle a file of proxies
-    pth = isFile(p)
-    if pth:
-        with open(pth) as infile:
-            for proxy in infile:
-                scheme,proxy = parseProxy(proxy.strip())
-                proxy = {scheme:proxy}
-                if proxy in proxies: continue
-                proxies.append(proxy)
-
-    # Handle an individual proxy
-    else:
-        scheme,proxy = parseProxy(p)
-        proxy = {scheme:proxy}
-        if proxy in proxies: continue
-        proxies.append({scheme:proxy})
-
-print('done!',file=stderr)
-# == END handle proxies ==
-# == Handle targets ==
-print('[+] Loading targets...',end='',file=stderr)
-targets = []
-for t in args.targets:
-
-    # Handle a file of targets
-    pth = isFile(t)
-    if pth:
-        with open(pth) as infile:
-            for target in infile:
-                targets += parseTarget(target.strip())
-
-    # Handle an individual target
-    else:
-        targets += parseTarget(t)
-print('done!',file=stderr)
-# == END handle targets ==
-# == Handle headers ==
-
-print('[+] Loading http headers...',end='',file=stderr)
-headers = {}
-for h in args.http_headers:
-
-    pth = isFile(h)
-    if pth:
-        with open(pth) as infile:
-            for header in infile:
-                key,value = parseHeader(header)
-                headers[key] = value
-
-    else:
-        key,value = parseHeader(h)
-        headers[key] = value
-print('done!',file=stderr)
-
-# == END handle headers ==
-
-# ======================
-# BEGIN SENDING REQUESTS
-# ======================
-
-print('[+] Beginning to send HTTP requests',file=stderr)
-if not args.display_failures:
-    print('[+] Failed requests will not be displayed',file=stderr)
-
-# Initialize variables for multiprocessing
-pool, results = Pool(args.process_count), []
-tcount = targets.__len__()
-
-# Send the requests
-for proxy in proxies:
-
-    for target in targets:
-
-        # Assure protocols are matching, skip otherwise
-        if not compareSchemes(list(proxy.values())[0],target):
-            continue
-
-        # Handle maximum parallel execution
-        while results.__len__() == args.process_count:
-
-            # Detect and display completed requests
-            to_del = []
-            for res in results:
-                if res.ready():
-                    printResult(res.get())
-                    to_del.append(res)
-
-            # Delete complete results
-            if to_del:
-                for res in to_del:
-                    del(results[results.index(res)])
-                to_del.clear()
-
-            # Depending on if requests or ongoing, break or sleep
-            if results.__len__() < args.process_count:
-                break
-            else:
-                sleep(.5)
-
-        # Perform the next request
-        results.append(
-                pool.apply_async(
-                    genericRequestsCallback,(),{'proxy':proxy,
-                        'target':target,'headers':headers})
-            )
-
-        sleep(1)
-
-# Wait and report on pending results
-print('[+] Final requests sent, awaiting responses',file=stderr)
-while results:
-
-    result = results[0]
-
-    if result.ready():
-        printResult(result.get())
-        del(results[results.index(result)])
-
-    if results: sleep(.5)
-print('[+] Execution complete',file=stderr)
-
-# Close up the pool
-pool.close()
-pool.join()
-
-# == END MAIN LOGIC ==
+    # == END FUNCTION DEFINITIONS ==
+    
+    # ================
+    # BEGIN MAIN LOGIC
+    # ================
+    
+    args = parser.parse_args()
+    
+    print(
+    '\n  _ \                      __|\n' \
+    '  __/ _| _ \ \ \ /  |  | \__ \  _ \   _| _` |  |  |\n' \
+    '_|  _| \___/  _\_\ \_, | ____/ .__/ _| \__,_| \_, |\n' \
+    '                    ___/       _|              ___/\n',file=stderr)
+    
+    # == Handle proxies ==
+    
+    print('[+] Loading proxies...',end='',file=stderr)
+    proxies = []
+    for p in args.proxy_urls:
+        
+        # Handle a file of proxies
+        pth = isFile(p)
+        if pth:
+            with open(pth) as infile:
+                for proxy in infile:
+                    scheme,proxy = parseProxy(proxy.strip())
+                    proxy = {scheme:proxy}
+                    if proxy in proxies: continue
+                    proxies.append(proxy)
+    
+        # Handle an individual proxy
+        else:
+            scheme,proxy = parseProxy(p)
+            proxy = {scheme:proxy}
+            if proxy in proxies: continue
+            proxies.append({scheme:proxy})
+    
+    print('done!',file=stderr)
+    # == END handle proxies ==
+    # == Handle targets ==
+    print('[+] Loading targets...',end='',file=stderr)
+    targets = []
+    for t in args.targets:
+    
+        # Handle a file of targets
+        pth = isFile(t)
+        if pth:
+            with open(pth) as infile:
+                for target in infile:
+                    targets += parseTarget(target.strip())
+    
+        # Handle an individual target
+        else:
+            targets += parseTarget(t)
+    print('done!',file=stderr)
+    # == END handle targets ==
+    # == Handle headers ==
+    
+    print('[+] Loading http headers...',end='',file=stderr)
+    headers = {}
+    for h in args.http_headers:
+    
+        pth = isFile(h)
+        if pth:
+            with open(pth) as infile:
+                for header in infile:
+                    key,value = parseHeader(header)
+                    headers[key] = value
+    
+        else:
+            key,value = parseHeader(h)
+            headers[key] = value
+    print('done!',file=stderr)
+    
+    # == END handle headers ==
+    
+    # ======================
+    # BEGIN SENDING REQUESTS
+    # ======================
+    
+    print('[+] Beginning to send HTTP requests',file=stderr)
+    if not args.display_failures:
+        print('[+] Failed requests will not be displayed',file=stderr)
+    
+    # Initialize variables for multiprocessing
+    pool, results = Pool(args.process_count), []
+    tcount = targets.__len__()
+    
+    # Send the requests
+    for proxy in proxies:
+    
+        for target in targets:
+    
+            # Assure protocols are matching, skip otherwise
+            if not compareSchemes(list(proxy.values())[0],target):
+                continue
+    
+            # Handle maximum parallel execution
+            while results.__len__() == args.process_count:
+    
+                # Detect and display completed requests
+                to_del = []
+                for res in results:
+                    if res.ready():
+                        printResult(res.get())
+                        to_del.append(res)
+    
+                # Delete complete results
+                if to_del:
+                    for res in to_del:
+                        del(results[results.index(res)])
+                    to_del.clear()
+    
+                # Depending on if requests or ongoing, break or sleep
+                if results.__len__() < args.process_count:
+                    break
+                else:
+                    sleep(.5)
+    
+            # Perform the next request
+            results.append(
+                    pool.apply_async(
+                        genericRequestsCallback,(),{'proxy':proxy,
+                            'target':target,'headers':headers})
+                )
+    
+            sleep(.25)
+    
+    # Wait and report on pending results
+    print('[+] Final requests sent, awaiting responses',file=stderr)
+    while results:
+    
+        result = results[0]
+    
+        if result.ready():
+            printResult(result.get())
+            del(results[results.index(result)])
+    
+        if results: sleep(.5)
+    print('[+] Execution complete',file=stderr)
+    
+    # Close up the pool
+    pool.close()
+    pool.join()
+    
+    # == END MAIN LOGIC ==
