@@ -33,7 +33,7 @@ to use during execution.
 
 # Example
 
-```python3
+```bash
 ./proxy_spray.py --proxy-urls https://192.168.86.1:8080 https://192.168.86.2:8080 \
   --targets https://www.google.com https://www.linkedin.com 8.8.8.8/24 \
   --display-failures
